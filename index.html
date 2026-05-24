@@ -792,7 +792,8 @@
           </div>
           <div class="form-group">
             <label for="inputCategory">หมวดหมู่</label>
-            <select id="inputCategory" required></select>
+            <input type="text" id="inputCategory" list="categoryDatalist" placeholder="เลือกหรือพิมพ์หมวดหมู่..." required autocomplete="off">
+            <datalist id="categoryDatalist"></datalist>
           </div>
           <div class="form-group">
             <label for="inputDate">วันที่</label>
@@ -1186,13 +1187,24 @@
       return d.innerHTML;
     }
 
-    function populateCategorySelect(type) {
-      const sel = document.getElementById('inputCategory');
-      if (!settings) return;
+    function resolveCategoryId(name, type) {
+      const trimmed = name.trim();
+      let cat = settings.categories.find(c => c.type === type && c.name === trimmed);
+      if (!cat) {
+        cat = { id: uid(), name: trimmed, type };
+        settings.categories.push(cat);
+        saveSettings();
+      }
+      return cat.id;
+    }
+
+    function populateCategoryDatalist(type) {
+      const list = document.getElementById('categoryDatalist');
+      const input = document.getElementById('inputCategory');
+      if (!settings || !list) return;
       const cats = settings.categories.filter(c => c.type === type);
-      sel.innerHTML = cats.length
-        ? cats.map(c => `<option value="${c.id}">${escapeHTML(c.name)}</option>`).join('')
-        : '<option value="" disabled selected>ไม่มีหมวดหมู่ — เพิ่มในการตั้งค่า</option>';
+      list.innerHTML = cats.map(c => `<option value="${escapeHTML(c.name)}">`).join('');
+      if (input) input.value = '';
     }
 
     function renderRecordList() {
@@ -1476,7 +1488,7 @@
       saveSettings();
       toast('ลบหมวดหมู่แล้ว');
       renderCategoryManager();
-      populateCategorySelect(selectedType);
+      populateCategoryDatalist(selectedType);
       refreshAll();
     }
 
@@ -1490,7 +1502,7 @@
       saveSettings();
       renderModeBadge();
       renderCategoryManager();
-      populateCategorySelect(selectedType);
+      populateCategoryDatalist(selectedType);
       refreshAll();
       toast('เปลี่ยนโหมดแล้ว');
     }
@@ -1523,7 +1535,7 @@
       document.getElementById('btnTypeExpense').classList.toggle('active-income', false);
       document.getElementById('btnTypeIncome').classList.toggle('active-income', type === 'income');
       document.getElementById('btnTypeIncome').classList.toggle('active-expense', false);
-      populateCategorySelect(type);
+      populateCategoryDatalist(type);
     }
 
     function initApp() {
@@ -1563,7 +1575,7 @@
       saveSettings();
       document.getElementById('setupModal').classList.remove('open');
       renderModeBadge();
-      populateCategorySelect(selectedType);
+      populateCategoryDatalist(selectedType);
       refreshAll();
       toast('ยินดีต้อนรับ!');
     });
@@ -1598,12 +1610,14 @@
       if (!settings) return;
 
       const amount = +document.getElementById('inputAmount').value;
-      const categoryId = document.getElementById('inputCategory').value;
+      const categoryName = document.getElementById('inputCategory').value.trim();
       const date = document.getElementById('inputDate').value;
       const note = document.getElementById('inputNote').value.trim();
 
       if (!amount || amount <= 0) { toast('กรุณาระบุจำนวนเงิน'); return; }
-      if (!categoryId) { toast('กรุณาเลือกหมวดหมู่'); return; }
+      if (!categoryName) { toast('กรุณาระบุหมวดหมู่'); return; }
+
+      const categoryId = resolveCategoryId(categoryName, selectedType);
 
       const [y, m] = date.split('-').map(Number);
       const data = loadMonthData(y, m);
@@ -1618,6 +1632,7 @@
       saveMonthData(y, m, data);
 
       document.getElementById('inputAmount').value = '';
+      document.getElementById('inputCategory').value = '';
       document.getElementById('inputNote').value = '';
       toast('บันทึกรายการแล้ว');
 
@@ -1646,7 +1661,7 @@
       saveSettings();
       document.getElementById('newCatName').value = '';
       renderCategoryManager();
-      populateCategorySelect(selectedType);
+      populateCategoryDatalist(selectedType);
       refreshAll();
       toast('เพิ่มหมวดหมู่แล้ว');
     });
@@ -1667,7 +1682,7 @@
         saveSettings();
         document.getElementById('editCatModal').classList.remove('open');
         renderCategoryManager();
-        populateCategorySelect(selectedType);
+        populateCategoryDatalist(selectedType);
         refreshAll();
         toast('บันทึกแล้ว');
       }
